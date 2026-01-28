@@ -5,6 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "importlib>=1.0.4",
     "nats-py>=2.12.0",
     "pydantic>=2.12.5",
     "pyyaml>=6.0.3",
