@@ -65,9 +65,13 @@ def start_digsinet(config: Settings):
     topology_prefix: str = "clab"
     # Contains the Sibling controllers- and the realnet controller modules
     controller_modules: dict[str, ModuleType] = load_controller_modules(config)
-    # Append the realnet controller
 
-    # TODO: call create_controllers()
+    create_controllers(
+        digsinet_config=config, 
+        containerlab_topology_config=containerlab_topology_definition, 
+        controller_modules=controller_modules, 
+        logger=logger
+    )
     
 
 def read_config(config_file: str) -> Settings:
@@ -95,7 +99,7 @@ def load_topology(config: Settings) -> Any:
         return topology_definition
     
 def load_controller_modules(config: Settings) -> dict[str, ModuleType] :
-    """_Loads sibling controller modules based on the config_
+    """_Loads sibling controller modules and the realnet based on the config_
 
     This is just the module declaration based on `importlib` types.
     The class can be extracted and its constructor be called.
@@ -122,17 +126,26 @@ def load_controller_modules(config: Settings) -> dict[str, ModuleType] :
 
     logger.debug("Loading realnet controller using module controllers.realnet ...")
     realnet_module: ModuleType = importlib.import_module("controllers.realnet") # Consider subfolder
-
     controller_modules["realnet"]
 
     return controller_modules
 
 def create_controllers(
-    config: Settings,
-
+    digsinet_config: Settings,
+    containerlab_topology_config: Any,
+    controller_modules: dict[str, ModuleType],
+    logger: Logger,
 ):
     """_Constructs all configured sibling- and the realnet-controllers_
     """
+
+    for (sibling, sibling_config) in digsinet_config.siblings.items():
+        if sibling_config.controller:
+            logger.info(f"Starting controller for {sibling}")
+            # TODO: start sibling controller
+
+    # TODO: start realnet controller
+
 
 if __name__ == "__main__":
     main()
