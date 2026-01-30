@@ -57,11 +57,17 @@ def stop_digsinet(config: Settings):
     pass
 
 def start_digsinet(config: Settings):
+    global logger
+    
     # Containerlab definition file. See containerlab docs for more info
     containerlab_topology_definition: Any = load_topology(config)
     topology_name: str = containerlab_topology_definition.get("name")
     topology_prefix: str = "clab"
-    sibling_controller_modules: dict[str, ModuleType] = load_sibling_controller_modules(config)
+    # Contains the Sibling controllers- and the realnet controller modules
+    controller_modules: dict[str, ModuleType] = load_controller_modules(config)
+    # Append the realnet controller
+
+    # TODO: call create_controllers()
     
 
 def read_config(config_file: str) -> Settings:
@@ -88,7 +94,7 @@ def load_topology(config: Settings) -> Any:
         topology_definition = yaml.safe_load(file)
         return topology_definition
     
-def load_sibling_controller_modules(config: Settings) -> dict[str, ModuleType] :
+def load_controller_modules(config: Settings) -> dict[str, ModuleType] :
     """_Loads sibling controller modules based on the config_
 
     This is just the module declaration based on `importlib` types.
@@ -105,15 +111,28 @@ def load_sibling_controller_modules(config: Settings) -> dict[str, ModuleType] :
     controller_modules: dict[str, ModuleType] = dict()
     for controller in config.controllers:
         logger.debug(f"Loading controller {controller}...")
-        controller_name = config.controllers.get(controller)
-        if controller_name is None:
+        controller_module = config.controllers.get(controller)
+        if controller_module is None:
             logger.error(f"Sibling Controller {controller} not found in configuration. Skipping")
             continue
-        if controller_name == "realnet":
-            logger.error(f"Sibling controller must not be named 'realnet'. Skipping")
-        module: ModuleType = importlib.import_module(controller_name.module)
+        if controller_module.module == "controllers.realnet":
+            logger.error("Sibling controller package must not be 'controllers.realnet'. Skipping")
+        module: ModuleType = importlib.import_module(controller_module.module)
         controller_modules[controller] = module
+
+    logger.debug("Loading realnet controller using module controllers.realnet ...")
+    realnet_module: ModuleType = importlib.import_module("controllers.realnet") # Consider subfolder
+
+    controller_modules["realnet"]
+
     return controller_modules
+
+def create_controllers(
+    config: Settings,
+
+):
+    """_Constructs all configured sibling- and the realnet-controllers_
+    """
 
 if __name__ == "__main__":
     main()
