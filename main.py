@@ -61,8 +61,8 @@ def start_digsinet(config: Settings):
     containerlab_topology_definition: Any = load_topology(config)
     topology_name: str = containerlab_topology_definition.get("name")
     topology_prefix: str = "clab"
-    controllers = load_controllers(config)
-    pass
+    sibling_controller_modules: dict[str, ModuleType] = load_sibling_controller_modules(config)
+    
 
 def read_config(config_file: str) -> Settings:
     """
@@ -88,19 +88,32 @@ def load_topology(config: Settings) -> Any:
         topology_definition = yaml.safe_load(file)
         return topology_definition
     
-def load_controllers(config: Settings) :
+def load_sibling_controller_modules(config: Settings) -> dict[str, ModuleType] :
+    """_Loads sibling controller modules based on the config_
+
+    This is just the module declaration based on `importlib` types.
+    The class can be extracted and its constructor be called.
+
+    Args:
+        config (Settings): _The config_
+
+    Returns:
+        dict[str, Controller]: _Dictionary of sibling names to controllers_
+    """
     global logger
 
-    controllers: dict[str, Controller] = dict()
+    controller_modules: dict[str, ModuleType] = dict()
     for controller in config.controllers:
         logger.debug(f"Loading controller {controller}...")
         controller_name = config.controllers.get(controller)
         if controller_name is None:
-            logger.error(f"Controller {controller} not found in configuration. Skipping")
+            logger.error(f"Sibling Controller {controller} not found in configuration. Skipping")
             continue
+        if controller_name == "realnet":
+            logger.error(f"Sibling controller must not be named 'realnet'. Skipping")
         module: ModuleType = importlib.import_module(controller_name.module)
-        controllers[controller] = module
-    return controllers
+        controller_modules[controller] = module
+    return controller_modules
 
 if __name__ == "__main__":
     main()
