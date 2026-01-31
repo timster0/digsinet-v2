@@ -157,9 +157,26 @@ def create_controllers(
     for (sibling, sibling_config) in digsinet_config.siblings.items():
         if sibling_config.controller:
             logger.info(f"Starting controller for {sibling}")
-            # TODO: start sibling controller
+            try:
+                controller_class: type[Controller] = getattr(controller_modules[sibling_config.controller], sibling_config.controller) 
+            except AttributeError as e:
+                logger.error(f"Failed to get controller class {sibling_config.controller} from module : {e}. Skipping")
+                continue    
+            
+            controller: Controller = controller_class(
+                # TODO: initialize with proper parameters
+            )
 
-    # TODO: start realnet controller
+    # Start realnet controller
+    try:
+        realnet_controller_class: type[Controller] = getattr(controller_modules["realnet"], "realnet")
+    except AttributeError as e:
+        logger.fatal(f"Failed to get realnet controller class from module : {e}. This is fatal. Exiting")
+        exit(1)
+    realnet_controller: Controller = realnet_controller_class(
+        # TODO: initialize with proper parameters
+    )
+    
 
 
 if __name__ == "__main__":
