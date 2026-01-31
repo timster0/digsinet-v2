@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
+import asyncio
 from logging import Logger
 from multiprocessing import Process
+from typing import final
 
 from config.settings import Settings
 
@@ -55,6 +57,7 @@ class Controller(ABC):
 
         self._name = name
 
+    @final
     def __init__(
         self,
         logger: Logger,
@@ -85,12 +88,12 @@ class Controller(ABC):
         self.real_topology_definition: dict = real_topology_definition
         self.broker = None  # TODO: Initialize event broker here
 
-        self.process: Process = Process(target=self.__run, name="Controller " + self.name)
+        self.process: Process = Process(target=self.run, name="Controller " + self.name)
         self.process.start()
         self.logger.info(f"Started controller process for {self.name} with PID {self.process.pid}")
 
-    @abstractmethod
-    def __run(self):
+    @final
+    def run(self):
         """
         Start the controller with the applications for the assigned sibling / realnet
         Args:
@@ -102,3 +105,21 @@ class Controller(ABC):
         Raises:
             None
         """
+
+        asyncio.run(self.async_run())
+
+    @abstractmethod
+    async def async_run(self):
+        """
+        Start the controller with the applications for the assigned sibling / realnet.
+        This method is to be overridden by subclasses.
+        Args:
+            None
+
+        Returns:
+            None
+
+        Raises:
+            None
+        """
+        pass
