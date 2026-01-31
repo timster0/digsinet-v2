@@ -94,9 +94,15 @@ def load_topology(config: Settings) -> Any:
     Args:
         config (Settings): _The settings to extract the containerlab definition from_
     """
-    with open(config.topology.file, "r") as file:
-        topology_definition = yaml.safe_load(file)
-        return topology_definition
+    try:
+        with open(config.topology.file, "r") as file:
+            topology_definition = yaml.safe_load(file)    
+            logger.debug(f"Loaded containerlab topology definition from {config.topology.file}.")
+            return topology_definition
+    except Exception as e:
+        logger.error(f"Failed to read containerlab topology definition from {config.topology.file}: {e}. Aborting")
+        exit(1)
+    
     
 def load_controller_modules(config: Settings) -> dict[str, ModuleType] :
     """_Loads sibling controller modules and the realnet based on the config_
@@ -114,19 +120,28 @@ def load_controller_modules(config: Settings) -> dict[str, ModuleType] :
 
     controller_modules: dict[str, ModuleType] = dict()
     for controller in config.controllers:
-        logger.debug(f"Loading controller {controller}...")
-        controller_module = config.controllers.get(controller)
+        logger.debug(f"Loading controller module for {controller}...")
+        controller_module: ControllerSettings | None = config.controllers.get(controller)
         if controller_module is None:
-            logger.error(f"Sibling Controller {controller} not found in configuration. Skipping")
+            logger.error(f"Sibling Controller configuration {controller} not found in configuration file. Skipping")
             continue
         if controller_module.module == "controllers.realnet":
             logger.error("Sibling controller package must not be 'controllers.realnet'. Skipping")
-        module: ModuleType = importlib.import_module(controller_module.module)
+        try:    
+            module: ModuleType = importlib.import_module(controller_module.module)
+        except ModuleNotFoundError as e:
+            logger.error(f"Failed to load controller module {controller_module.module} for controller {controller}: {e}. Skipping")
+            continue    
         controller_modules[controller] = module
+        logger.info(f"Loaded controller module {controller_module.module} for controller {controller}")
 
     logger.debug("Loading realnet controller using module controllers.realnet ...")
-    realnet_module: ModuleType = importlib.import_module("controllers.realnet") # Consider subfolder
-    controller_modules["realnet"]
+    try:
+        realnet_module: ModuleType = importlib.import_module("controllers.realnet") # Consider subfolder
+    except ModuleNotFoundError as e:
+        logger.fatal(f"Failed to load realnet controller module controllers.realnet: {e}. This is fatal. Exiting")
+        exit(1)
+    controller_modules["realnet"] = realnet_module
 
     return controller_modules
 
@@ -135,7 +150,7 @@ def create_controllers(
     containerlab_topology_config: Any,
     controller_modules: dict[str, ModuleType],
     logger: Logger,
-):
+) -> None:
     """_Constructs all configured sibling- and the realnet-controllers_
     """
 
