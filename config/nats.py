@@ -1,7 +1,7 @@
-from pydantic import BaseModel
+from eventbroker.eventbroker import EventBrokerConfig
 
 
-class NatsSettings(BaseModel):
+class NatsSettings(EventBrokerConfig):
     """
     Configuration for NATS
 
