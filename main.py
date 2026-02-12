@@ -9,6 +9,9 @@ from config.settings import  ControllerSettings, Settings
 from controllers.controller import Controller
 import importlib
 
+from controllers.realnet import RealnetController
+from controllers.sibling import SiblingController
+
 
 logger: Logger = logging.getLogger("digsinet-v2")
 
@@ -48,10 +51,12 @@ def main():
     if arguments.stop:
         logger.info("Stopping all siblings and cleaning up containers...")
         stop_digsinet(config)
+        return
     
     elif arguments.start:
         logger.info("Starting digsinet-v2 with configuration file: %s", arguments.config)
         start_digsinet(config)
+        return
 
 def stop_digsinet(config: Settings):
     pass
@@ -66,12 +71,15 @@ def start_digsinet(config: Settings):
     # Contains the Sibling controllers- and the realnet controller modules
     controller_modules: dict[str, ModuleType] = load_controller_modules(config)
 
-    create_controllers(
+    realnet_controller: RealnetController = create_controllers(
         digsinet_config=config, 
         containerlab_topology_config=containerlab_topology_definition, 
         controller_modules=controller_modules, 
         logger=logger
     )
+
+    # The realnet controller terminating means the program ending
+    realnet_controller.join()
     
 
 def read_config(config_file: str) -> Settings:
@@ -149,33 +157,48 @@ def create_controllers(
     digsinet_config: Settings,
     containerlab_topology_config: Any,
     controller_modules: dict[str, ModuleType],
-    logger: Logger,
-) -> None:
+    logger: Logger
+) -> RealnetController:
     """_Constructs all configured sibling- and the realnet-controllers_
     """
 
+    siblings: Dict[str, Dict[str, SiblingController]] = dict()
+
     for (sibling, sibling_config) in digsinet_config.siblings.items():
+        siblings[sibling] = dict()
         if sibling_config.controller:
             logger.info(f"Starting controller for {sibling}")
             try:
-                controller_class: type[Controller] = getattr(controller_modules[sibling_config.controller], sibling_config.controller) 
+                sibling_controller_class: type[SiblingController] = getattr(controller_modules[sibling_config.controller], sibling_config.controller) 
             except AttributeError as e:
                 logger.error(f"Failed to get controller class {sibling_config.controller} from module : {e}. Skipping")
                 continue    
             
-            controller: Controller = controller_class(
+            controller: SiblingController = sibling_controller_class(
                 # TODO: initialize with proper parameters
+                logger=logger,
+                config=digsinet_config,
+                real_topology_definition=containerlab_topology_config,
+                sibling=sibling
             )
+
+            siblings[sibling]["controller"] = controller
 
     # Start realnet controller
     try:
-        realnet_controller_class: type[Controller] = getattr(controller_modules["realnet"], "realnet")
+        realnet_controller_class: type[RealnetController] = getattr(controller_modules["realnet"], "realnet")
     except AttributeError as e:
         logger.fatal(f"Failed to get realnet controller class from module : {e}. This is fatal. Exiting")
         exit(1)
-    realnet_controller: Controller = realnet_controller_class(
+    realnet_controller: RealnetController = realnet_controller_class(
         # TODO: initialize with proper parameters
+        siblings=siblings,
+        logger=logger,
+        config=digsinet_config,
+        real_topology_definition=containerlab_topology_config
     )
+
+    return realnet_controller
     
 
 

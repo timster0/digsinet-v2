@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, List
+from typing import Any, List, Optional, Tuple
 from logging import Logger
 
 from pydantic import BaseModel
@@ -9,11 +9,11 @@ class Message(ABC):
         self._message = message
 
     @abstractmethod
-    def error(self):
+    def error(self) -> str | None:
         pass
 
     @abstractmethod
-    def value(self):
+    def value(self) -> Optional[str]:
         pass
 
 class EventBrokerConfig(BaseModel):
@@ -31,19 +31,28 @@ class EventBroker(ABC):
         pass
 
     @abstractmethod
-    async def publish(self, channel: str, data):
+    async def publish(self, channel: str, data: Any):
         pass
 
     @abstractmethod
-    async def poll(self, consumer, timeout) -> Message:
+    async def poll(self, consumer: Any, timeout: float) -> Optional[Message]:
         pass
 
     @abstractmethod
-    async def subscribe(self, channel: str, group_id: str | None = None):
+    async def subscribe(self, channel: str, group_id: str | None = None) -> Tuple[Any, str]:
+        """_Subscribe to channel_
+
+        Args:
+            channel (str): _description_
+            group_id (str | None, optional): _description_. Defaults to None.
+
+        Returns:
+            Tuple[Any, str]: _Broker defined Subscription and the corresponding channel_
+        """
         pass
 
     @abstractmethod
-    async def get_sibling_channels(self):
+    async def get_sibling_channels(self) -> List[str]:
         pass
 
     @abstractmethod

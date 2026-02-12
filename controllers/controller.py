@@ -5,6 +5,8 @@ from multiprocessing import Process
 from typing import final
 
 from config.settings import Settings
+from eventbroker.eventbroker import EventBroker
+from eventbroker.nats import NatsClient
 
 class Controller(ABC):
     """
@@ -57,7 +59,6 @@ class Controller(ABC):
 
         self._name = name
 
-    @final
     def __init__(
         self,
         logger: Logger,
@@ -68,6 +69,7 @@ class Controller(ABC):
         Initialize the controller.
 
         Also initializes an event broker for event streaming and communicating with other controllers.
+        Since this constructor starts the process, it must be CALLED AFTER the child constructors
         
         Args:
             config (dict): contents of configuration file and derived supplemental configuration
@@ -86,7 +88,7 @@ class Controller(ABC):
         self.logger: Logger = logger
         self.config: Settings = config
         self.real_topology_definition: dict = real_topology_definition
-        self.broker = None  # TODO: Initialize event broker here
+        self.broker: EventBroker | None = None
 
         self.process: Process = Process(target=self.run, name="Controller " + self.name)
         self.process.start()
@@ -105,8 +107,20 @@ class Controller(ABC):
         Raises:
             None
         """
+        async def wrapper():
+            if self.config.nats is not None: # TODO: let the config determine the eventbroker type
+                self.broker = NatsClient(self.config.nats, list(self.name), self.logger)
+            else:
+                self.logger.fatal(f"No EventBroker config supplied. This is fatal, exiting controller {self.name}")
+                return
+            await self.async_run()
 
-        asyncio.run(self.async_run())
+
+        asyncio.run(wrapper())
+    
+    @final
+    def join(self):
+        self.process.join()
 
     @abstractmethod
     async def async_run(self):
@@ -122,4 +136,4 @@ class Controller(ABC):
         Raises:
             None
         """
-        pass
+        pass 
