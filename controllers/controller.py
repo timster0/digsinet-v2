@@ -109,7 +109,7 @@ class Controller(ABC):
         """
         async def wrapper():
             if self.config.nats is not None: # TODO: let the config determine the eventbroker type
-                self.broker = NatsClient(self.config.nats, list(self.name), self.logger)
+                self.broker = await NatsClient.create(self.config.nats, list(self.name), self.logger)
             else:
                 self.logger.fatal(f"No EventBroker config supplied. This is fatal, exiting controller {self.name}")
                 return

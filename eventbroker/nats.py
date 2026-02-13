@@ -24,13 +24,19 @@ class NatsMessage(Message):
         return self._message.data.decode() # Defaults to UTF-8
     
 class NatsClient(EventBroker):
-    async def __init__(self, config: NatsSettings, channels: List[str], logger: Logger):
-        await super().__init__(config, channels, logger)
+
+    def __init__(self, nats_client: Client, config: NatsSettings, channels: List[str], logger: Logger):
+        super().__init__(config, channels, logger)
         self.config: NatsSettings = config
         self.subjects: List[str] = channels
         self.logger: Logger = logger
-        self.client: Client = await nats.connect(f"{self.config.host}:{self.config.port}")
         self.subscribers: Dict[str, NatsSubscription] = dict()
+        self.client = nats_client
+
+    @classmethod # Define a classmethod because of pythons weird async logic
+    async def create(cls, config: NatsSettings, channels: List[str], logger: Logger):
+        client = await nats.connect(f"{config.host}:{config.port}")
+        return cls(client, config, channels, logger)
 
     async def publish(self, channel: str, data: Any):
         if channel not in self.subjects:
